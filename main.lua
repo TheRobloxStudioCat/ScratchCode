@@ -1,6 +1,7 @@
 local font_size = 18
 
-local current_console = {"ScratchCode 2.0 example project", "Made by TheDreamingCat"}
+print([[Welcome to ScratchCode!
+Example project made by TheDreamingCat]])
 
 local scr_code = require("libraries.scratchcode.main")
 
