@@ -1,6 +1,6 @@
 --ScratchCode programming language version 2.0.
 
---Made by TheDreamingCat on 28th of September,2025
+--Made by TheDreamingCat on 15th of February,2026
 --ScratchCode Codename:Bublik release version
 
 --Very silly code,please be aware.
