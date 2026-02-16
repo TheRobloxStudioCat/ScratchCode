@@ -279,7 +279,7 @@ local function run_synt(syntax_saved,mainList,index) -- Runs the provided functi
         --print("Indexing: "..tostring(index))
 
         return
-    elseif syntax_saved[1] == "@endforever" then
+    elseif syntax_saved[1] == "@forever_end" then
         --print("Trying to jump to: "..tostring(forever_stack[#forever_stack]))
 
         love.timer.sleep(0.001)
