@@ -150,13 +150,15 @@ local function syntaxGet(text) -- Self explanitory
 end
 
 function to_string(text)
-    local returned_string = "none" -- I can change this at any moment.
+    local returned_string = "" -- I can change this at any moment.
 
     if text and tostring(text) == text then
         if text:sub(1,1) == "'" and text:sub(#text,#text) == "'" then
             returned_string = text:sub(2,#text - 1)
         elseif text:sub(1,1) == '"' and text:sub(#text,#text) == '"' then
             returned_string = text:sub(2,#text - 1)
+        else
+            return "nil", true
         end
 
         local randon_chance = math.random(1,10)
@@ -188,6 +190,15 @@ local function getMath(string_math)
     return (n1 ~= nil and op ~= nil and n2 ~= nil),{n1,op,n2}
 end
 
+local function getLogic(string_logic)
+    local main_p = "(%S+)"
+    local op_p = "([%p]+)"
+
+    local n1, op, n2 = string_logic:match("^"..main_p.."%s+"..op_p.."%s+"..main_p.."$")
+
+    return (n1 ~= nil and op ~= nil and n2 ~= nil),{n1,op,n2}
+end
+
 local function getVarData(string_assign)
     --print(string_assign)
 
@@ -208,6 +219,76 @@ local function getVarData(string_assign)
     return false, {}
 end
 
+local function math_do(math_str)
+    local isOper, ret_oper = getMath(math_str)
+
+    if isOper then
+        for i,v in ipairs(ret_oper) do
+            if i == 1 or i == 3 then
+                ret_oper[i] = tonumber(is_aVar(v)) or 0
+            end
+        end
+
+        -- print("Doing math..")
+
+        local mathOperators = {
+            ["+"] = ret_oper[1] + ret_oper[3],
+            ["-"] = ret_oper[1] - ret_oper[3],
+            ["/"] = ret_oper[1] / ret_oper[3],
+            ["*"] = ret_oper[1] * ret_oper[3],
+        }
+
+        -- print(ret_math)
+
+        return mathOperators[ret_oper[2]]
+    else
+        return math_str
+    end
+end
+
+local function logic_do(logic_str)
+    local isLogic, ret_logic = getLogic(logic_str)
+
+    if isLogic then
+        for i,v in ipairs(ret_logic) do
+            --print(i)
+
+            if i == 1 or i == 3 then
+                --print("demo")
+
+                ret_logic[i] = is_aVar(v)
+
+                if v == "true" then
+                    ret_logic[i] = true
+                elseif v == "false" then
+                    ret_logic[i] = false
+                end
+
+                local str,is_str = to_string(v)
+
+                --print(str, is_str)
+
+                if is_str ~= true then
+                    ret_logic[i] = str
+
+                    --print("Converted!")
+                end
+            end
+        end
+
+        local logic_got = {
+            ["=="] = ret_logic[1] == ret_logic[3],
+            ["~="] = ret_logic[1] ~= ret_logic[3],
+            ["<="] = ret_logic[1] <= ret_logic[3],
+            [">="] = ret_logic[1] >= ret_logic[3],
+        }
+
+        return logic_got[ret_logic[2]]
+    else
+        return logic_str
+    end
+end
+
 local function run_synt(syntax_saved,mainList,index) -- Runs the provided function.
     local isRet,retVariable = returnVariable(tostring(syntax_saved[#syntax_saved]))
 
@@ -224,33 +305,24 @@ local function run_synt(syntax_saved,mainList,index) -- Runs the provided functi
     --print(syntax_saved[1])
 
     for i,v in ipairs(syntax_saved) do
-            if i > 1 then
-                local isOper,ret_oper = getMath(v)
+        if i > 1 then
+            --print(v)
 
-                if isOper then
-                    for i,v in ipairs(ret_oper) do
-                        if i == 1 or i == 3 then
-                            ret_oper[i] = tonumber(is_aVar(v)) or 0
-                        end
-                    end
+            syntax_saved[i] =  math_do(v)
 
-                    local mathOperators = {
-                        ["+"] = ret_oper[1] + ret_oper[3],
-                        ["-"] = ret_oper[1] - ret_oper[3],
-                        ["/"] = ret_oper[1] / ret_oper[3],
-                        ["*"] = ret_oper[1] * ret_oper[3],
-                    }
-
-                    local ret_math = mathOperators[ret_oper[2]]
-
-                    --print(ret_oper[1],ret_oper[2],ret_oper[3])
-
-                    syntax_saved[i] = ret_math
-                end
+            if v == "true" then
+                syntax_saved[i] = true
+            elseif v == "false" then
+                syntax_saved[i] = false
             end
+
+            syntax_saved[i] = logic_do(v)
+
+            --print(math_do(v))
+        end
     end
 
-    local saved = syntax_saved[1].." "..(syntax_saved[2] or "")
+    local saved = syntax_saved[1].." "..(tostring(syntax_saved[2]) or "")
 
     --print(saved)
 
@@ -263,11 +335,11 @@ local function run_synt(syntax_saved,mainList,index) -- Runs the provided functi
     --print(saved)
 
     if syntax_saved[1] == "@if" then
-        local condition_result = (is_aVar(syntax_saved[2]) == "true" or true)
+        local condition_result = (is_aVar(syntax_saved[2]) == true)
         table.insert(if_stack, condition_result)
 
         return
-    elseif syntax_saved[1] == "@endif" then
+    elseif syntax_saved[1] == "@end_if" then
         table.remove(if_stack)
 
         return
@@ -279,7 +351,7 @@ local function run_synt(syntax_saved,mainList,index) -- Runs the provided functi
         --print("Indexing: "..tostring(index))
 
         return
-    elseif syntax_saved[1] == "@forever_end" then
+    elseif syntax_saved[1] == "@end_forever" then
         --print("Trying to jump to: "..tostring(forever_stack[#forever_stack]))
 
         love.timer.sleep(0.001)
@@ -333,30 +405,9 @@ local function run_synt(syntax_saved,mainList,index) -- Runs the provided functi
 
             get_func(syntax_saved[1],mainList,returned_syntax)
         elseif isVarCreate then
-            local isOper,ret_oper = getMath(varData[2])
-
-            if isOper then
-                for i,v in ipairs(ret_oper) do
-                    if i == 1 or i == 3 then
-                        ret_oper[i] = tonumber(is_aVar(v)) or 0
-                    end
-                end
-
-                local mathOperators = {
-                    ["+"] = ret_oper[1] + ret_oper[3],
-                    ["-"] = ret_oper[1] - ret_oper[3],
-                    ["/"] = ret_oper[1] / ret_oper[3],
-                    ["*"] = ret_oper[1] * ret_oper[3],
-                }
-
-                local ret_math = mathOperators[ret_oper[2]]
-
-                --print(ret_oper[1],ret_oper[2],ret_oper[3])
-
-                varData[2] = ret_math
-            else
-                varData[2] = is_aVar(varData[2])
-            end
+            varData[2] = math_do(varData[2])
+            varData[2] = logic_do(varData[2])
+            varData[2] = is_aVar(varData[2])
 
             newVar(varData[1],varData[2])
         elseif syntax_saved[1] ~= "@script" then
@@ -389,7 +440,7 @@ local function run_comp(mainList)
             --print('In function,moron!')
 
             inFunc = true
-        elseif v[1] == '@func_end' then
+        elseif v[1] == '@end_func' then
             --print('Not in function,moron!')
 
             inFunc = false
@@ -437,7 +488,7 @@ function compSynt(mainList,compFunc) -- Simple code!
 
                 table.insert(current_func_name,v[2])
                 table.insert(current_func_pos,i)
-            elseif v[1] == "@func_end" then
+            elseif v[1] == "@end_func" then
                 print("Line "..to_string(i))
 
                 -- print(table_saved[1])

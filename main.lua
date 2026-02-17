@@ -46,7 +46,7 @@ local function split(input)
 end
 
 function love.update()
-    io.write("> ")
+    io.write("ScrCode> ")
 
     local run_to = split(io.read())
 
